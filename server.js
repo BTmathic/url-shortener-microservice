@@ -4,22 +4,15 @@ const bodyParser = require('body-parser');
 const express = require('express');
 const mongo = require('mongodb');
 const mongoose = require('mongoose');
-
 const cors = require('cors');
-
 const app = express();
 
 // Basic Configuration 
 const port = process.env.PORT || 3000;
-
-/** this project needs a db !! **/ 
-const db = mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true });
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true });
 app.use(cors());
-
-/** this project needs to parse POST bodies **/
-// you should mount the body-parser here
-
 app.use(bodyParser.urlencoded({extended: false}));
+
 app.use('/public', express.static(process.cwd() + '/public'));
 
 app.get('/', (req, res) => {
@@ -29,12 +22,11 @@ app.get('/', (req, res) => {
 // Database setup
 const Schema = mongoose.Schema;
 const URLSchema = new Schema({
-  url: String,      // original URL
-  shortURL: Number  // shortened URL that links to the original
+  url: String,
+  shortURL: Number // our short URLs will just be positive integers
 });
 const URL = mongoose.model('URL', URLSchema);
 // get initial number of URLs in database
-// async so will not be stored if there is an error or delay accessing the database
 let numberOfStoredURLs;
 URL.find({}, (error, results) => {
   if (error) {
@@ -59,7 +51,7 @@ let createAndSaveURL = (longURL) => {
   });
 }
 
-// A naive validator for URLs
+// A naive validator for URLs, we only require a URL to start with http:// or https:// to be considered valid
 function validURL(url) {
   let isValid = true;
   if (url.slice(0,7) !== 'http://' && url.slice(0,8) !== 'https://') {
@@ -68,12 +60,11 @@ function validURL(url) {
   return isValid;
 }
 
-// When the user pushes a new url for the microservice
+// push a new URL
 app.route('/api/shorturl/new').post((req, res) => {
   const queryURL = req.body.url;
   if (validURL(queryURL)) {
     res.json({original_url: queryURL, short_url: numberOfStoredURLs+1});
-    // post to database
     createAndSaveURL(queryURL);
   } else {
     res.json({error:'invalid URL'});
